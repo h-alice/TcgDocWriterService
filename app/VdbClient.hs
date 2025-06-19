@@ -107,6 +107,10 @@ instance ToJSON RetrievalResponse where
         , "documents" .= respDocuments
         ]
 
+-- =========================================================================== --
+-- | VDB query client function                                                 --
+-- =========================================================================== --
+
 
 retrievalDocument :: String           -- ^ The full URL of the reranker API endpoint (e.g., "http://host:port/v1/rerank").
                 -> RetrievalRequest           -- ^ The user query.
