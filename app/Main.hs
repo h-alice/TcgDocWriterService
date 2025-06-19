@@ -34,7 +34,7 @@ main = do
             }
     let chatRecord = ChatRecord
             { crRole = "user"
-            , crContent = "What is Haskell? Can you explain with a rap?"
+            , crContent = "What is Haskell? Can you explain with a short rap?"
             }
     let chatRequest = mkChatRequest [chatRecord] "gpt-3.5-turbo" chatParams
     response <- try (W.postWith opts "http://127.0.0.1:11435/v1/chat/completions" (A.toJSON chatRequest)) :: IO (Either SomeException (W.Response BL.ByteString))
