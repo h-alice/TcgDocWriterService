@@ -95,23 +95,7 @@ instance ToJSON ChatRequest where
                , "temperature" .= rqTemperature
                , "top_p" .= rqTopP
                ]
-
-
-
-
--- {'id': 'chatcmpl-eb9enbp55qub24ujwkg7i',
---  'object': 'chat.completion',
---  'created': 1750322475,
---  'model': 'gemma-3-4b-it@q4_k_m',
---  'choices': [{'index': 0,
---    'logprobs': None,
---    'finish_reason': 'stop',
---    'message': {'role': 'assistant',
---     'content': 'Okay, let\'s break down the crime rates in Singapore. It’s really important to understand that Singapore consistently ranks as one of the *safest* countries globally, and this reflects strongly in its crime statistics. However, "crime rate" can be measured differently, so I\'ll give you a breakdown based on several key metrics:\n\n**1. Overall Crime Rates (Compared to Other Nations):**\n\n* **Extremely Low:** Singapore consistently has one of the *lowest* rates of violent and property crimes per capita in the world. It’s often cited as being safer than many developed Western nations.\n* **Significantly Lower Than Global Average:**  For example, according to UNODC data (United Nations Office on Drugs and Crime), Singapore\'s homicide rate is dramatically lower than most countries – around 0.14 per 100,000 people compared to a global average of roughly 6.7 per 100,000.\n\n**2. Specific Crime Categories & Recent Statistics (as of late 2023/early 2024 - Note: Data can shift slightly):**\n\n* **Serious Crimes:** This is the most closely watched category and includes offenses like murder, robbery, burglary, theft, and serious drug offences.\n    * **2022:** There were 3,876 serious crimes reported.\n    * **2021:**  There were 4,095 serious crimes reported. (This is a slight increase from the previous year).\n    * **Trend:** While there\'s been a small uptick in recent years, it’s still exceptionally low compared to many countries. The number of serious crimes per 100,000 population is very low – around 1.3.\n\n* **Petty Crime:** This includes things like pickpocketing and minor theft. These are also relatively rare.\n* **Drug Offences:** Singapore has a very strict approach to drug offenses, and there\'s been an increase in detections and arrests related to this due to enforcement efforts. However, the *number* of reported cases remains lower than many other countries with similar populations.\n\n**3. Key Factors Contributing to Low Crime Rates:**\n\n* **Strict Laws & Enforcement:** Singapore has a robust legal system and consistently enforces its laws, including severe penalties for criminal activity.\n* **High Police Presence & Surveillance:** There’s a significant police presence throughout the country, combined with extensive CCTV surveillance (particularly in public areas).\n* **Social Stability & Economic Prosperity:**  Singapore boasts high levels of social cohesion, economic opportunity, and relatively low income inequality – factors that are often linked to lower crime rates.\n* **Community Policing:** The Singaporean Police Force emphasizes community engagement and partnerships.\n\n\n\n**4. Sources for Data (Important for Further Research):**\n\n* **Singapore Ministry of Home Affairs (MHA):** [https://www.mha.gov.sg/](https://www.mha.gov.sg/) – This is the official source for crime statistics and reports in Singapore.\n* **United Nations Office on Drugs and Crime (UNODC):** [https://dataunodc.org/](https://dataunodc.org/) - Provides comparative international crime data, including Singapore\'s figures.\n* **Singapore Police Force:** [https://www.police.gov.sg/](https://www.police.gov.sg/) – Offers information about crime prevention and safety measures.\n\n**Important Note on Definitions & Comparisons:**  It’s crucial to remember that “crime rate” can be calculated in different ways (e.g., per capita, per 100,000 population). Also, comparing Singapore\'s statistics to other countries requires careful consideration of differences in legal systems, cultural norms, and reporting practices.\n\n**In short:  Singapore has an incredibly low crime rate compared to almost every country in the world.**\n\n\nDo you want me to delve deeper into a specific aspect of this information, such as:\n\n*   Trends over time?\n*   Specific types of crimes (e.g., drug offenses)?\n*   Comparisons with other Southeast Asian countries?'}}],
---  'usage': {'prompt_tokens': 24, 'completion_tokens': 877, 'total_tokens': 901},
---  'stats': {},
---  'system_fingerprint': 'gemma-3-4b-it@q4_k_m'}
-
+               
 data ResponseChoice = ResponseChoice
     { rcIndex :: !Int
     , rcFinishReason :: !T.Text
