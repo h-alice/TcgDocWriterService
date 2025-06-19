@@ -23,8 +23,8 @@ secondsToMicro s = s * 1000000
 main :: IO ()
 main = do
     putStrLn "Starting VDB Client..."
-    let opts =    W.defaults & W.header "Content-Type" .~ ["application/json"]
-                             & W.manager .~ Left (defaultManagerSettings { 
+    let opts =   W.defaults & W.header "Content-Type" .~ ["application/json"]
+                            & W.manager .~ Left (defaultManagerSettings { 
                                     managerResponseTimeout = responseTimeoutMicro $ secondsToMicro 300 } ) -- 5 minutes timeout
     let chatParams = LmParameters
             { temp = 0.7
@@ -36,13 +36,13 @@ main = do
             { crRole = "user"
             , crContent = "What is Haskell? Can you explain with a short rap?"
             }
-    let chatRequest = mkChatRequest [chatRecord] "gpt-3.5-turbo" chatParams
+    let chatRequest = mkChatRequest [chatRecord] "gpt-3.5-turbo" defaultLmParam
     response <- try (W.postWith opts "http://127.0.0.1:11435/v1/chat/completions" (A.toJSON chatRequest)) :: IO (Either SomeException (W.Response BL.ByteString))
     case response of
         Left err -> putStrLn $ "Error: " ++ show err
         Right res -> do
             let status = res ^. W.responseStatus
-            let body = res ^. W.responseBody
+            let body =   res ^. W.responseBody
             putStrLn $ "Status: " ++ show status
             case A.eitherDecode body :: Either String ChatResponse of
                 Left errMsg -> putStrLn $ "Failed to decode response: " ++ errMsg
