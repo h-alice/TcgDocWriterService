@@ -37,7 +37,7 @@ main = do
             , crContent = "What is Haskell? Can you explain with a short rap?"
             }
     let chatRequest = mkChatRequest [chatRecord] "gpt-3.5-turbo" defaultLmParam
-    response <- try (W.postWith opts "http://127.0.0.1:11435/v1/chat/completions" (A.toJSON chatRequest)) :: IO (Either SomeException (W.Response BL.ByteString))
+    response <- try (W.postWith opts "http://127.0.0.1:8089/v1/chat/completions" (A.toJSON chatRequest)) :: IO (Either SomeException (W.Response BL.ByteString))
     case response of
         Left err -> putStrLn $ "Error: " ++ show err
         Right res -> do
