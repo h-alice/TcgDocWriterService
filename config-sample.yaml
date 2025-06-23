@@ -1,0 +1,13 @@
+network:
+  hostname: "127.0.0.1"
+  port: 8080
+
+generator:
+  system: "You are a helpful assistant."
+  promptTemplate: "Based on the following document: {{documents}}\nAnswer the user's question: {{user_query}}"
+  docPlaceholder: "{{documents}}"
+  userPlaceholder: "{{user_query}}"
+
+lmEndpoint: "http://127.0.0.1:8081/v1/chat/completions"
+
+vdbEndpoint: "http://127.0.0.1:8082/v1/retrieval"
