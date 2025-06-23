@@ -13,6 +13,7 @@ module LmClient (
     , ChatResponse(..)
     , ResponseChoice(..)
     , ChatUsage(..)
+    , lmRequest
 
 ) where
 
@@ -24,14 +25,13 @@ import qualified Network.Wreq         as W
 import qualified Data.Text            as T
 import Control.Lens                 ((&), (.~), (^.)) -- For wreq operators
 import Control.Exception            (try, SomeException)
-import Data.Text.Encoding           (decodeUtf8') -- Use safe decoding for status msg
-import Text.Printf                  (printf)
+
 import Data.Aeson                   ( FromJSON(..), ToJSON(..)
                                     , Value, object, (.=), (.:), (.:?) , (.!=)
                                     , withObject )
-import Data.List                   (sortBy)
-import Data.Ord                    (comparing)
-import Network.Wai (Response)
+
+import Network.HTTP.Client (defaultManagerSettings, managerResponseTimeout, responseTimeoutMicro)
+
 
 data LmParameters = LmParameters
     { temp :: !Double       -- ^ Optional: The temperature for sampling.
@@ -88,14 +88,14 @@ instance FromJSON ChatRecord where
 instance ToJSON ChatRequest where
     toJSON :: ChatRequest -> Value
     toJSON ChatRequest{rqMessages, rqModel, rqFrequencyPenalty, rqPresencePenalty, rqTemperature, rqTopP} =
-        object [ "messages" .= rqMessages
-               , "model" .= rqModel
-               , "frequency_penalty" .= rqFrequencyPenalty
-               , "presence_penalty" .= rqPresencePenalty
-               , "temperature" .= rqTemperature
-               , "top_p" .= rqTopP
-               ]
-               
+        object  [  "messages" .= rqMessages
+                ,  "model" .= rqModel
+                ,  "frequency_penalty" .= rqFrequencyPenalty
+                ,  "presence_penalty" .= rqPresencePenalty
+                ,  "temperature" .= rqTemperature
+                ,  "top_p" .= rqTopP
+                ]
+
 data ResponseChoice = ResponseChoice
     { rcIndex :: !Int
     , rcFinishReason :: !T.Text
@@ -142,3 +142,26 @@ instance FromJSON ChatResponse where
         <*> v .:    "choices"
         <*> v .:?   "usage"     .!= ChatUsage { cuPromptTokens = 0, cuCompletionTokens = 0, cuTotalTokens = 0 }
         <*> v .:?   "system_fingerprint" .!= ""
+
+secondsToMicro :: Int -> Int
+secondsToMicro s = s * 1000000
+
+lmRequest :: String -> ChatRequest -> IO (Either String ChatResponse)
+lmRequest endPoint chatRequest = do
+    let opts = W.defaults & W.header "Content-Type" .~ ["application/json"]
+                          & W.manager .~ Left (defaultManagerSettings { 
+                                  managerResponseTimeout = responseTimeoutMicro $ secondsToMicro 300 } ) -- 5 minutes timeout
+    response <- try (W.postWith opts endPoint (A.toJSON chatRequest)) :: IO (Either SomeException (W.Response BL.ByteString))
+    case response of
+        Left err -> return $ Left $ "LM request failed due to: " ++ show err
+        Right res -> do
+            let status = res ^. W.responseStatus
+            let statusCode = status ^. W.statusCode
+            let body = res ^. W.responseBody
+            if statusCode /= 200
+                then return $ Left $ "LM request failed with status code: " ++ show statusCode
+            else do
+                -- Attempt to decode the response body as ChatResponse
+                case A.eitherDecode body :: Either String ChatResponse of
+                    Left errMsg -> return $ Left $ "LM response decoding failed: " ++ errMsg
+                    Right chatResponse -> return $ Right chatResponse
