@@ -2,9 +2,10 @@
 {-# LANGUAGE InstanceSigs #-}
 
 module Config (
-  NetworkConfig(..),
-  GeneratorConfig(..),
-  Config(..)
+    NetworkConfig(..)
+  , GeneratorConfig(..)
+  , Config(..)
+  , loadConfig
 ) where
 
 import Data.Text (Text)
@@ -63,3 +64,8 @@ instance FromJSON Config where
     v .: "lmEndpoint" <*>
     v .: "vdbEndpoint"
   parseJSON _ = fail "Expected Object for Config value"
+
+
+loadConfig :: FilePath -> IO (Either Y.ParseException Config)
+loadConfig path = do
+  Y.decodeFileEither path
