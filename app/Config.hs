@@ -65,7 +65,9 @@ instance FromJSON Config where
     v .: "vdbEndpoint"
   parseJSON _ = fail "Expected Object for Config value"
 
-
-loadConfig :: FilePath -> IO (Either Y.ParseException Config)
+loadConfig :: FilePath -> IO (Either String Config)
 loadConfig path = do
-  Y.decodeFileEither path
+  loadResult <- Y.decodeFileEither path
+  case loadResult of
+    Left err -> return $ Left (Y.prettyPrintParseException err)
+    Right cfg -> return $ Right cfg
