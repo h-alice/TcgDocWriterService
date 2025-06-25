@@ -1,19 +1,21 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE InstanceSigs #-}
+{-# LANGUAGE RecordWildCards #-}
 
 module Config (
     NetworkConfig(..)
   , GeneratorConfig(..)
   , Config(..)
   , loadConfig
+  , printConfig
 ) where
 
 import Data.Text (Text)
+import qualified Data.Text as T
+import qualified Data.Text.IO as TIO
 import qualified Data.Yaml as Y
 import Data.Yaml (FromJSON(..), (.:))
 
-import Data.ByteString (ByteString)
-import Control.Applicative
 
 data NetworkConfig =
   NetworkConfig {
@@ -71,3 +73,16 @@ loadConfig path = do
   case loadResult of
     Left err -> return $ Left (Y.prettyPrintParseException err)
     Right cfg -> return $ Right cfg
+
+printConfig :: Config -> IO ()
+printConfig Config{..} = do
+  TIO.putStrLn "Configuration Loaded Successfully:"
+  TIO.putStrLn "-------------------------------"
+  TIO.putStrLn "Network Config: "
+  TIO.putStrLn $ "  Hostname: " <> ncHostname cfgNetwork
+  TIO.putStrLn $ "  Port: " <> T.pack (show $ ncPort cfgNetwork)
+  TIO.putStrLn $ "System Prompt: \n" <> gcSystem cfgGenerator
+  TIO.putStrLn $ "Prompt Template: \n" <> gcPromptTemplate cfgGenerator
+  TIO.putStrLn $ "LM Endpoint: " <> cfgLmEndpoint
+  TIO.putStrLn $ "VDB Endpoint: " <> cfgVdbEndpoint
+  TIO.putStrLn "-------------------------------"
