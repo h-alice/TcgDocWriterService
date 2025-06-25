@@ -1,72 +1,65 @@
-{-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE OverloadedStrings #-}
+-- |
+-- Module      : ApiCore
+-- Description : Defines the core data types for the API request structure.
+-- Copyright   : (c) 2025 Wayne "h-alice" Hong
+-- License     : AGPL-3.0
+-- Maintainer  : admin@halice.art
+-- Stability   : experimental
+-- Portability : POSIX
+--
+-- This module contains the data types that correspond to the JSON structure 
+-- of incoming API requests. It includes definitions for generator
+-- configuration, vector database configuration, and the main request body,
+-- along with their 'FromJSON' instances for parsing.
+--
 {-# LANGUAGE DeriveGeneric     #-}
-{-# LANGUAGE RecordWildCards   #-} -- Optional, can make response construction cleaner
-{-# LANGUAGE InstanceSigs #-}
-{-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE InstanceSigs      #-}
+{-# LANGUAGE NamedFieldPuns    #-}
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE RecordWildCards   #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
-module ApiCore () where
+module ApiCore (
+    ApiGeneratorRequest(..)
+  , ApiVdbConfig(..)
+  , ApiRequest(..)
+) where
 
+import Data.Aeson       (FromJSON (..), Value, withObject, (.:))
+import Data.Aeson.Types (Parser)
+import Data.Text        (Text)
+import GHC.Generics     (Generic)
 
-
-import GHC.Generics (Generic) -- For deriving Show, Eq
--- JSON Handling
-
-
--- Text and Bytestring
-import Data.Text (Text)
--- For packing Content-Type header value
- -- For wreq operators
- -- Use safe decoding for status msg
-import Data.Aeson.Types (Parser)                                -- For custom parsing
-import Data.Aeson                   ( FromJSON(..)  -- For JSON serial/deserialization
-                                    , Value, withObject -- For JSON structure
-                                    , (.:)  -- Operators
-                                    )
-
--- Sample
--- {
---     "user_query": "What is the weather like today?",
---     "req_id": "12345",
---     "vdb_config": {
---         "collection": "weather_data",
---         "top_k": 5,
---         "pool_size": 10,
---         "alpha": 0.5
---     },
---     "generator_config": {
---         "model": "gpt-3.5-turbo",
---         "temperature": 0.7,
---         "top_p": 0.9,
---         "frequency_penalty": 0.0,
---         "presence_penalty": 0.0
---     }
--- }
-
--- Data structure for the API request
+-- | Configuration for the text generator, corresponding to the `generator_config` JSON object.
 data ApiGeneratorRequest = ApiGeneratorRequest
-  { agModel :: Text
-  , agTemperature :: Double
-  , agTopP :: Double
-  , agFrequencyPenalty :: Double
-  , agPresencePenalty :: Double
+  { agModel            :: !Text   -- ^ The model to use (e.g., "gpt-3.5-turbo").
+  , agTemperature      :: !Double -- ^ The temperature for sampling.
+  , agTopP             :: !Double -- ^ The top-p sampling parameter.
+  , agFrequencyPenalty :: !Double -- ^ The frequency penalty.
+  , agPresencePenalty  :: !Double -- ^ The presence penalty.
   } deriving (Show, Generic)
 
+-- | Configuration for the vector database, corresponding to the `vdb_config` JSON object.
 data ApiVdbConfig = ApiVdbConfig
-  { avCollection :: Text
-  , avTopK :: Int
-  , avPoolSize :: Int
-  , avAlpha :: Double
+  { avCollection :: !Text   -- ^ The collection name to search in.
+  , avTopK       :: !Int    -- ^ The number of top results to return.
+  , avPoolSize   :: !Int    -- ^ The number of documents to retrieve from the wider pool.
+  , avAlpha      :: !Double -- ^ The alpha parameter for hybrid search.
   } deriving (Show, Generic)
 
+-- | Represents the main API request structure.
 data ApiRequest = ApiRequest
-  { arUserQuery :: Text
-  , arReqId :: Text
-  , arVdbConfig :: ApiVdbConfig
-  , arGeneratorConfig :: ApiGeneratorRequest
+  { arUserQuery       :: !Text               -- ^ The user's query text.
+  , arReqId           :: !Text               -- ^ A unique identifier for the request.
+  , arVdbConfig       :: !ApiVdbConfig       -- ^ Vector database configuration.
+  , arGeneratorConfig :: !ApiGeneratorRequest -- ^ Text generator configuration.
   } deriving (Show, Generic)
 
--- Aeson instances for JSON serialization/deserialization
+-- ========================================================================== --
+-- Aeson Instances for JSON Deserialization                                   --
+-- ========================================================================== --
+
+-- | 'FromJSON' instance for 'ApiGeneratorRequest'.
 instance FromJSON ApiGeneratorRequest where
   parseJSON :: Value -> Parser ApiGeneratorRequest
   parseJSON = withObject "ApiGeneratorRequest" $ \v -> ApiGeneratorRequest
@@ -76,6 +69,7 @@ instance FromJSON ApiGeneratorRequest where
     <*> v .: "frequency_penalty"
     <*> v .: "presence_penalty"
 
+-- | 'FromJSON' instance for 'ApiVdbConfig'.
 instance FromJSON ApiVdbConfig where
   parseJSON :: Value -> Parser ApiVdbConfig
   parseJSON = withObject "ApiVdbConfig" $ \v -> ApiVdbConfig
@@ -84,6 +78,7 @@ instance FromJSON ApiVdbConfig where
     <*> v .: "pool_size"
     <*> v .: "alpha"
 
+-- | 'FromJSON' instance for 'ApiRequest'.
 instance FromJSON ApiRequest where
   parseJSON :: Value -> Parser ApiRequest
   parseJSON = withObject "ApiRequest" $ \v -> ApiRequest
@@ -91,5 +86,3 @@ instance FromJSON ApiRequest where
     <*> v .: "req_id"
     <*> v .: "vdb_config"
     <*> v .: "generator_config"
-
-
