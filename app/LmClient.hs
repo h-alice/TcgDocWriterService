@@ -14,6 +14,7 @@ module LmClient (
     , ResponseChoice(..)
     , ChatUsage(..)
     , lmRequest
+    , maybeTopResponse
 
 ) where
 
@@ -165,3 +166,9 @@ lmRequest endPoint chatRequest = do
                 case A.eitherDecode body :: Either String ChatResponse of
                     Left errMsg -> return $ Left $ "LM response decoding failed: " ++ errMsg
                     Right chatResponse -> return $ Right chatResponse
+
+maybeTopResponse :: ChatResponse -> Maybe T.Text
+maybeTopResponse ChatResponse{rpChoices} =
+    case rpChoices of
+        [] -> Nothing
+        (x:_) -> Just $ crContent $ rcMessage x
