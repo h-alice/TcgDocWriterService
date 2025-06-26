@@ -23,9 +23,11 @@ module ApiCore (
     ApiGeneratorRequest(..)
   , ApiVdbConfig(..)
   , ApiRequest(..)
+  , FrontEndMessage(..)
+  , FrontEndThread(..)
 ) where
 
-import Data.Aeson       (FromJSON (..), Value, withObject, (.:))
+import Data.Aeson       (FromJSON (..), Value, withObject, (.:), (.=), (.:?), (.!=))
 import Data.Aeson.Types (Parser)
 import Data.Text        (Text)
 import GHC.Generics     (Generic)
@@ -53,6 +55,22 @@ data ApiRequest = ApiRequest
   , arReqId           :: !Text               -- ^ A unique identifier for the request.
   , arVdbConfig       :: !ApiVdbConfig       -- ^ Vector database configuration.
   , arGeneratorConfig :: !ApiGeneratorRequest -- ^ Text generator configuration.
+  } deriving (Show, Generic)
+
+-- | Represents a message received from the frontend, typically containing a user query and a flag for rewriting.
+-- |   If `fmRewriteFlag` is True, it indicates that the query should be rewritten using prompt rewriter.
+data FrontEndMessage = FrontEndMessage
+  { fmMessageId    :: !Text
+  , fmUserQuery    :: !Text
+  , fmRewriteFlag  :: !Bool
+  } deriving (Show, Generic)
+
+-- | A thread is a collection of messages, identified by a unique request ID.
+data FrontEndThread = FrontEndThread
+  { ftMessages        :: ![FrontEndMessage]  -- ^ List of messages in the thread.
+  , fmVdbConfig       :: !ApiVdbConfig
+  , fmGeneratorConfig :: !ApiGeneratorRequest
+  , ftReqId           :: !Text               -- ^ Unique identifier for the thread.
   } deriving (Show, Generic)
 
 -- ========================================================================== --
@@ -86,3 +104,21 @@ instance FromJSON ApiRequest where
     <*> v .: "req_id"
     <*> v .: "vdb_config"
     <*> v .: "generator_config"
+
+-- | 'FromJSON' instance for 'FrontEndMessage'.
+instance FromJSON FrontEndMessage where
+  parseJSON :: Value -> Parser FrontEndMessage
+  parseJSON = withObject "FrontEndMessage" $ \v -> FrontEndMessage
+    <$> v .:  "message_id"
+    <*> v .:  "user_query"
+    <*> v .:? "rewrite_flag" .!= False
+
+-- | 'FromJSON' instance for 'FrontEndThread'.
+instance FromJSON FrontEndThread where
+  parseJSON :: Value -> Parser FrontEndThread
+  parseJSON = withObject "FrontEndThread" $ \v -> FrontEndThread
+    <$> v .: "messages"
+    <*> v .: "vdb_config"
+    <*> v .: "generator_config"
+    <*> v .: "req_id"
+  
