@@ -5,16 +5,16 @@
 {-# LANGUAGE InstanceSigs #-}
 
 module LmClient (
-      mkChatRequest
-    , defaultLmParam
-    , LmParameters(..)
-    , ChatRecord(..)
-    , ChatRequest(..)
-    , ChatResponse(..)
-    , ResponseChoice(..)
-    , ChatUsage(..)
-    , lmRequest
-    , maybeTopResponse
+    mkChatRequest
+  , defaultLmParam
+  , LmParameters(..)
+  , ChatRecord(..)
+  , ChatRequest(..)
+  , ChatResponse(..)
+  , ResponseChoice(..)
+  , ChatUsage(..)
+  , lmRequest
+  , maybeTopResponse
 
 ) where
 

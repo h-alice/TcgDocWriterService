@@ -6,6 +6,7 @@ module Config (
     NetworkConfig(..)
   , GeneratorConfig(..)
   , Config(..)
+  , RewriterConfig(..)
   , loadConfig
   , printConfig
 ) where
@@ -23,12 +24,17 @@ data NetworkConfig =
   , ncPort     :: Int
   } deriving (Eq, Show)
 
+data RewriterConfig =
+  RewriterConfig {
+    rwPromptTemplate :: Text
+  , rwDocPlaceholder :: Text
+  , rwUserPlaceholder :: Text
+  } deriving (Eq, Show)
+
 data GeneratorConfig =
   GeneratorConfig {
     gcSystem :: Text
-  , gcPromptTemplate :: Text
-  , gcDocPlaceholder :: Text
-  , gcUserPlaceholder :: Text
+  , gcRewriter :: RewriterConfig
   } deriving (Eq, Show)
 
 data Config =
@@ -47,14 +53,21 @@ instance FromJSON NetworkConfig where
     v .: "port"
   parseJSON _ = fail "Expected Object for NetworkConfig value"
 
+instance FromJSON RewriterConfig where
+  parseJSON :: Y.Value -> Y.Parser RewriterConfig
+  parseJSON (Y.Object v) =
+    RewriterConfig <$>
+    v .: "promptTemplate" <*>
+    v .: "docPlaceholder" <*>
+    v .: "userPlaceholder"
+  parseJSON _ = fail "Expected Object for RewriterConfig value"
+
 instance FromJSON GeneratorConfig where
   parseJSON :: Y.Value -> Y.Parser GeneratorConfig
   parseJSON (Y.Object v) =
     GeneratorConfig <$>
-    v .: "system"         <*>
-    v .: "promptTemplate" <*>
-    v .: "docPlaceholder" <*>
-    v .: "userPlaceholder"
+    v .: "system"   <*>
+    v .: "rewriter"
   parseJSON _ = fail "Expected Object for GeneratorConfig value"
 
 instance FromJSON Config where
@@ -82,7 +95,7 @@ printConfig Config{..} = do
   TIO.putStrLn $ "  Hostname: " <> ncHostname cfgNetwork
   TIO.putStrLn $ "  Port: " <> T.pack (show $ ncPort cfgNetwork)
   TIO.putStrLn $ "System Prompt: \n" <> gcSystem cfgGenerator
-  TIO.putStrLn $ "Prompt Template: \n" <> gcPromptTemplate cfgGenerator
+  TIO.putStrLn $ "Prompt Template: \n" <> (rwPromptTemplate . gcRewriter) cfgGenerator
   TIO.putStrLn $ "LM Endpoint: " <> cfgLmEndpoint
   TIO.putStrLn $ "VDB Endpoint: " <> cfgVdbEndpoint
   TIO.putStrLn "-------------------------------"

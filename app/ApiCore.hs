@@ -61,7 +61,8 @@ data ApiRequest = ApiRequest
 -- |   If `fmRewriteFlag` is True, it indicates that the query should be rewritten using prompt rewriter.
 data FrontEndMessage = FrontEndMessage
   { fmMessageId    :: !Text
-  , fmUserQuery    :: !Text
+  , fmRole         :: !Text               -- ^ The role of the message sender (e.g., "user", "assistant").
+  , fmMessage      :: !Text
   , fmRewriteFlag  :: !Bool
   } deriving (Show, Generic)
 
@@ -70,7 +71,7 @@ data FrontEndThread = FrontEndThread
   { ftMessages        :: ![FrontEndMessage]  -- ^ List of messages in the thread.
   , fmVdbConfig       :: !ApiVdbConfig
   , fmGeneratorConfig :: !ApiGeneratorRequest
-  , ftReqId           :: !Text               -- ^ Unique identifier for the thread.
+  , ftThreadId        :: !Text               -- ^ Unique identifier for the thread.
   } deriving (Show, Generic)
 
 -- ========================================================================== --
@@ -101,7 +102,7 @@ instance FromJSON ApiRequest where
   parseJSON :: Value -> Parser ApiRequest
   parseJSON = withObject "ApiRequest" $ \v -> ApiRequest
     <$> v .: "user_query"
-    <*> v .: "req_id"
+    <*> v .: "thread_id"
     <*> v .: "vdb_config"
     <*> v .: "generator_config"
 
@@ -110,7 +111,8 @@ instance FromJSON FrontEndMessage where
   parseJSON :: Value -> Parser FrontEndMessage
   parseJSON = withObject "FrontEndMessage" $ \v -> FrontEndMessage
     <$> v .:  "message_id"
-    <*> v .:  "user_query"
+    <*> v .:  "role"
+    <*> v .:  "message"
     <*> v .:? "rewrite_flag" .!= False
 
 -- | 'FromJSON' instance for 'FrontEndThread'.
@@ -120,5 +122,5 @@ instance FromJSON FrontEndThread where
     <$> v .: "messages"
     <*> v .: "vdb_config"
     <*> v .: "generator_config"
-    <*> v .: "req_id"
+    <*> v .: "thread_id"
   
