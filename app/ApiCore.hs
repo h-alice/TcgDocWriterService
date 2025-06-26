@@ -27,7 +27,7 @@ module ApiCore (
   , FrontEndThread(..)
 ) where
 
-import Data.Aeson       (FromJSON (..), Value, withObject, (.:), (.=), (.:?), (.!=))
+import Data.Aeson       (FromJSON (..), Value, withObject, (.:), (.=), (.:?), (.!=), ToJSON (..), object)
 import Data.Aeson.Types (Parser)
 import Data.Text        (Text)
 import GHC.Generics     (Generic)
@@ -124,3 +124,11 @@ instance FromJSON FrontEndThread where
     <*> v .: "generator_config"
     <*> v .: "thread_id"
   
+instance ToJSON FrontEndMessage where
+  toJSON :: FrontEndMessage -> Value
+  toJSON FrontEndMessage {fmMessageId, fmRole, fmMessage, fmRewriteFlag} =
+    object  [ "message_id" .= fmMessageId
+            , "role" .= fmRole
+            , "message" .= fmMessage
+            , "rewrite_flag" .= fmRewriteFlag
+            ]
