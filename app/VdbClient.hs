@@ -32,6 +32,8 @@ import Data.Aeson                   ( FromJSON(..), ToJSON(..)  -- For JSON seri
                                     , (.=), (.:), (.!=), (.:?)  -- Operators
                                     )
 import qualified Data.Aeson           as A    (encode, eitherDecode)                               
+import Network.HTTP.Client (defaultManagerSettings, managerResponseTimeout, responseTimeoutMicro)
+
 
 data RetrievalParameters = RetrievalParameters
     { paramTopK :: !Int            -- ^ Optional: The number of top results to return. JSON key: "topK".
@@ -111,6 +113,9 @@ instance ToJSON RetrievalResponse where
 -- | VDB query client function                                                 --
 -- =========================================================================== --
 
+secondsToMicro :: Int -> Int
+secondsToMicro s = s * 1000000
+
 
 retrievalDocument :: String           -- ^ The full URL of the reranker API endpoint (e.g., "http://host:port/v1/rerank").
                 -> RetrievalRequest           -- ^ The user query.
@@ -119,8 +124,9 @@ retrievalDocument :: String           -- ^ The full URL of the reranker API endp
 retrievalDocument endPoint query = do
 
     -- 1. Configure HTTP request options
-    let opts =    W.defaults
-                & W.header "Content-Type" .~ ["application/json"]
+    let opts = W.defaults & W.header "Content-Type" .~ ["application/json"]
+                          & W.manager .~ Left (defaultManagerSettings { 
+                                  managerResponseTimeout = responseTimeoutMicro $ secondsToMicro 300 } ) -- 5 minutes timeout
 
     -- 2. Perform the HTTP POST request, catching potential exceptions
     eResult <- try (W.postWith opts endPoint (A.encode query))
