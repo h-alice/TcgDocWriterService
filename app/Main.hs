@@ -84,8 +84,10 @@ rewriteWorker FrontEndMessage{fmMessageId, fmRole, fmMessage, fmRewriteFlag} con
                 return $ Left $ "Error retrieving documents: " ++ err
             Right retrievedDocs -> do
 
+                -- Separator
+                let rwDocSep = (rwDocSeparator . gcRewriter . cfgGenerator) config
                 -- retrievedDocs is a list of Text documents
-                let docText = T.intercalate "\n\n=====\n\n" (respDocuments retrievedDocs)
+                let docText = T.intercalate rwDocSep (respDocuments retrievedDocs)
 
                 liftIO $ TIO.hPutStrLn stderr $ "[Rewriter] Retrieved documents: " <> docText
 
@@ -160,7 +162,6 @@ hdlePreflight conf _req resp = do
     -- Log the preflight request (optional)
     liftIO $ hPutStrLn stderr "[hdlePreflight] Preflight request received"
 
-    liftIO $ hPutStrLn stderr $ show _req
     -- Respond with CORS headers
     resp $ responseLBS status204 (addCorsHeaders []) "Preflight response"
 

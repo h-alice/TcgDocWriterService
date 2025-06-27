@@ -26,8 +26,9 @@ data NetworkConfig =
 
 data RewriterConfig =
   RewriterConfig {
-    rwPromptTemplate :: Text
-  , rwDocPlaceholder :: Text
+    rwPromptTemplate  :: Text
+  , rwDocPlaceholder  :: Text
+  , rwDocSeparator    :: Text
   , rwUserPlaceholder :: Text
   } deriving (Eq, Show)
 
@@ -59,6 +60,7 @@ instance FromJSON RewriterConfig where
     RewriterConfig <$>
     v .: "promptTemplate" <*>
     v .: "docPlaceholder" <*>
+    v .: "docSeparator" <*> 
     v .: "userPlaceholder"
   parseJSON _ = fail "Expected Object for RewriterConfig value"
 
