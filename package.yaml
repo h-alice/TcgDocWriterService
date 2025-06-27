@@ -32,7 +32,6 @@ dependencies:
 - wai
 - http-client
 - yaml
-- rainbow
 
 ghc-options:
 - -Wall

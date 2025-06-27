@@ -28,6 +28,9 @@ snapshot: lts-22.44
 #   subdirs:
 #   - auto-update
 #   - wai
+
+local-bin-path: ./bin
+
 packages:
 - .
 # Dependency packages to be pulled from upstream that are not in the snapshot.
