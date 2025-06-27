@@ -25,6 +25,8 @@ import VdbClient -- Client for the Vector Database
 
 -- Utils
 
+-- | Converts a list of 'Either's into an 'Either' of a list.
+-- | If any element is a 'Left', the result is the first 'Left'. Otherwise, it's a 'Right' of the list of values.
 eitherListVerifier :: [Either String a] -> Either String [a]
 eitherListVerifier [] = Right []
 eitherListVerifier (x:xs) =
@@ -35,6 +37,7 @@ eitherListVerifier (x:xs) =
         Left err -> Left err
         Right vals -> Right (val:vals)
 
+-- | Converts a 'FrontEndThread' into a list of 'ChatRecord's suitable for the LLM client.
 chatRecordFromFeThread :: FrontEndThread -> [ChatRecord]
 chatRecordFromFeThread FrontEndThread{ftMessages} =
     map (\FrontEndMessage{fmRole, fmMessage} -> ChatRecord
@@ -42,6 +45,7 @@ chatRecordFromFeThread FrontEndThread{ftMessages} =
         , crContent = fmMessage
         }) ftMessages
 
+-- | Injects the system prompt from the configuration into the message thread.
 sysPromptInjector :: FrontEndThread -> Config -> FrontEndThread
 sysPromptInjector FrontEndThread{ftMessages, fmVdbConfig, fmGeneratorConfig, ftThreadId} config =
   let systemMessage = FrontEndMessage
@@ -59,6 +63,10 @@ sysPromptInjector FrontEndThread{ftMessages, fmVdbConfig, fmGeneratorConfig, ftT
 
 -- Workers
 
+-- | Rewrites a single user message if its 'fmRewriteFlag' is set.
+-- | This involves retrieving relevant documents from the vector database and
+-- | injecting them into a prompt template along with the original user query.
+-- | Non-user messages or messages without the flag are returned unchanged.
 rewriteWorker :: FrontEndMessage -> Config -> ApiVdbConfig -> IO (Either String FrontEndMessage)
 rewriteWorker FrontEndMessage{fmMessageId, fmRole, fmMessage, fmRewriteFlag} config vdbConf = do
     if not fmRewriteFlag || (fmRole /= "user") then return $ Right FrontEndMessage{fmMessageId, fmRole, fmMessage, fmRewriteFlag}
@@ -103,6 +111,8 @@ rewriteWorker FrontEndMessage{fmMessageId, fmRole, fmMessage, fmRewriteFlag} con
 
           return $ Right FrontEndMessage{fmMessageId, fmRole, fmMessage = rewrittenQuery, fmRewriteFlag}
 
+-- | Orchestrates the prompt rewriting process for an entire 'FrontEndThread'.
+-- | It applies the 'rewriteWorker' to each message in the thread concurrently.
 promptRewriter :: FrontEndThread -> Config -> IO (Either String FrontEndThread)
 promptRewriter FrontEndThread{ftMessages, fmVdbConfig, fmGeneratorConfig, ftThreadId} config = do
     -- Log the start of the rewriting process
@@ -119,6 +129,8 @@ promptRewriter FrontEndThread{ftMessages, fmVdbConfig, fmGeneratorConfig, ftThre
             liftIO $ hPutStrLn stderr $ "[Rewriter] Successfully rewritten prompts for thread: " ++ T.unpack ftThreadId
             return $ Right FrontEndThread{ftMessages = rewrittenMessages, fmVdbConfig, fmGeneratorConfig, ftThreadId}
 
+-- | Generates a response from the language model based on the provided thread.
+-- | It constructs a request from the thread's messages and parameters, sends it to the LLM, and processes the response.
 respGenerator :: FrontEndThread -> Config -> IO (Either String FrontEndMessage)
 respGenerator feThread config = do
   -- Log the start of the response generation process
@@ -158,12 +170,14 @@ respGenerator feThread config = do
               return $ Left "No response text found."
 
 
+-- | Adds permissive CORS headers to a list of response headers.
 addCorsHeaders :: ResponseHeaders -> ResponseHeaders
 addCorsHeaders headers = headers ++ [   ("Access-Control-Allow-Origin", "*")
                                       , ("Access-Control-Allow-Methods", "POST, GET, OPTIONS")
                                       , ("Access-Control-Allow-Headers", "Content-Type, Authorization") ]
 
-hdlePreflight :: Application
+-- | Handles CORS preflight (OPTIONS) requests by responding with a 204 status and appropriate headers.
+hdlePreflight :: Application -- ^ The WAI Application for preflight requests.
 hdlePreflight _req resp = do
   -- Log the preflight request (optional)
   liftIO $ hPutStrLn stderr "[hdlePreflight] Preflight request received"
@@ -172,7 +186,11 @@ hdlePreflight _req resp = do
   resp $ responseLBS status204 (addCorsHeaders []) "Preflight response"
 
 
-hdleRequest :: Config -> Application
+-- | The main request handler for the `/genie` endpoint.
+-- | It decodes the request body, runs the prompt rewriting and response generation pipeline,
+-- | and sends the final generated message back as a JSON response.
+hdleRequest :: Config      -- ^ The application configuration.
+            -> Application -- ^ The WAI Application for handling the request.
 hdleRequest conf req resp = do
 
     -- 1. Read the lazy request body. It's lazy, so IO happens when consumed.
@@ -211,7 +229,9 @@ hdleRequest conf req resp = do
                 resp $ responseLBS status200 (addCorsHeaders [(hContentType, "application/json; charset=utf-8")]) jsonResponse -- Specify charset
 
 
-app :: Config      -- ^ Application configuration
+-- | The main WAI 'Application' for the server.
+-- | It acts as a router, dispatching requests to the appropriate handler based on the request path and method.
+app :: Config      -- ^ The application configuration.
     -> Application -- ^ Resulting WAI Application
 app config request respond = do
   -- Log incoming request details (optional but helpful for debugging)
@@ -249,6 +269,8 @@ app config request respond = do
 
 
 
+-- | The main entry point for the application.
+-- | It loads the configuration, prints it, and starts the Warp web server.
 main :: IO ()
 main = do
   putStrLn "Starting Document Writer API service..."
