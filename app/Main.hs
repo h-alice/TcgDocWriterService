@@ -2,30 +2,21 @@
 {-# LANGUAGE NamedFieldPuns #-}
 module Main (main) where
 
-import Lib
 
 import qualified Data.Text as T
-import Data.Text.Encoding (encodeUtf8, decodeUtf8)
-import Control.Exception            (try, SomeException)
-import Data.List
-import qualified Data.ByteString.Lazy as BL
-import qualified Network.Wreq as W
 import VdbClient
 import LmClient
 import ApiCore
 import qualified Data.Aeson as A
-import Control.Lens ((&), (.~), (^.))
-import Network.HTTP.Client (defaultManagerSettings, managerResponseTimeout, responseTimeoutMicro)
 import Config
 import qualified Data.Text.IO as TIO
 -- Web Server Core (WAI & Warp)
 import Network.Wai ( Application, pathInfo, requestMethod, responseLBS, lazyRequestBody )
 import Network.Wai.Handler.Warp (run)
-import Network.HTTP.Types ( status200, status400, status404, status405, status418, status500 )
-import Network.HTTP.Types.Header ( hContentType )
+import Network.HTTP.Types ( status200, status400, status404, status405, status418, status500, status204 )
+import Network.HTTP.Types.Header
 import Control.Monad.IO.Class (liftIO) -- To lift IO actions within WAI Application monad
-import System.IO (hPutStrLn, stderr, stdout) -- For printing errors/warnings
-import Data.Either
+import System.IO (hPutStrLn, stderr) -- For printing errors/warnings
 
 
 -- Utils
@@ -64,7 +55,7 @@ sysPromptInjector FrontEndThread{ftMessages, fmVdbConfig, fmGeneratorConfig, ftT
 
 rewriteWorker :: FrontEndMessage -> Config -> ApiVdbConfig -> IO (Either String FrontEndMessage)
 rewriteWorker FrontEndMessage{fmMessageId, fmRole, fmMessage, fmRewriteFlag} config vdbConf = do
-    if not fmRewriteFlag || (fmRole /= "user") then return $ Right FrontEndMessage{fmMessageId, fmRole, fmMessage, fmRewriteFlag} 
+    if not fmRewriteFlag || (fmRole /= "user") then return $ Right FrontEndMessage{fmMessageId, fmRole, fmMessage, fmRewriteFlag}
     else do
         let rwConfig = gcRewriter $ cfgGenerator config
         let promptTemplate = rwPromptTemplate rwConfig
@@ -158,6 +149,22 @@ respGenerator feThread config = do
                             liftIO $ hPutStrLn stderr $ "[Generator] No response text found."
                             return $ Left "No response text found."
 
+
+addCorsHeaders :: ResponseHeaders -> ResponseHeaders
+addCorsHeaders headers = headers ++ [   ("Access-Control-Allow-Origin", "*")
+                                      , ("Access-Control-Allow-Methods", "POST, GET, OPTIONS")
+                                      , ("Access-Control-Allow-Headers", "Content-Type, Authorization") ]
+
+hdlePreflight :: Config -> Application
+hdlePreflight conf _req resp = do
+    -- Log the preflight request (optional)
+    liftIO $ hPutStrLn stderr "[hdlePreflight] Preflight request received"
+
+    liftIO $ hPutStrLn stderr $ show _req
+    -- Respond with CORS headers
+    resp $ responseLBS status204 (addCorsHeaders []) "Preflight response"
+
+
 hdleRequest ::  Config -> Application
 hdleRequest conf req resp = do
 
@@ -167,7 +174,7 @@ hdleRequest conf req resp = do
   case A.eitherDecode body :: Either String FrontEndThread of
     Left err -> do
         liftIO $ hPutStrLn stderr $ "[hdleRequest] Failed to decode request body: " ++ err
-        resp $ responseLBS status400 [(hContentType, "text/plain; charset=utf-8")] "Invalid request body" -- Specify charset
+        resp $ responseLBS status400 (addCorsHeaders [(hContentType, "text/plain; charset=utf-8")]) "Invalid request body" -- Specify charset
     Right feThread -> do
         -- Log the received thread ID (optional)
         liftIO $ hPutStrLn stderr $ "[hdleRequest] Received thread ID: " ++ T.unpack (ftThreadId feThread)
@@ -181,7 +188,7 @@ hdleRequest conf req resp = do
         case rewrittenThread of
             Left err -> do
                 liftIO $ hPutStrLn stderr $ "[hdleRequest] Error in prompt rewriting: " ++ err
-                resp $ responseLBS status500 [(hContentType, "text/plain; charset=utf-8")] "Internal Server Error" -- Specify charset
+                resp $ responseLBS status500 (addCorsHeaders [(hContentType, "text/plain; charset=utf-8")]) "Internal Server Error" -- Specify charset
             Right finalThread -> do
                 -- Generate response based on the rewritten thread
                 responseMessage <- respGenerator finalThread conf
@@ -189,11 +196,12 @@ hdleRequest conf req resp = do
                 case responseMessage of
                     Left err -> do
                         liftIO $ hPutStrLn stderr $ "[hdleRequest] Error in response generation: " ++ err
-                        resp $ responseLBS status500 [(hContentType, "text/plain; charset=utf-8")] "Internal Server Error" -- Specify charset
+                        resp $ responseLBS status500 (addCorsHeaders [(hContentType, "text/plain; charset=utf-8")]) "Internal Server Error" -- Specify charset
                     Right message -> do
                         -- Respond with the generated message as JSON (or any other format you prefer)
                         let jsonResponse = A.encode message
-                        resp $ responseLBS status200 [(hContentType, "application/json; charset=utf-8")] jsonResponse -- Specify charset
+                        liftIO $ hPutStrLn stderr $ "[hdleRequest] Successfully generated response for thread: " ++ T.unpack (ftThreadId finalThread)
+                        resp $ responseLBS status200 (addCorsHeaders [(hContentType, "application/json; charset=utf-8")]) jsonResponse -- Specify charset
 
 
 app :: Config      -- ^ Application configuration
@@ -203,30 +211,34 @@ app config request respond = do
     liftIO $ hPutStrLn stderr $ "[app] Request received: " ++ show (requestMethod request) ++ " " ++ show (pathInfo request)
     -- Route based on method and path segments
     case (requestMethod request, pathInfo request) of
+
+        -- Handle OPTIONS requests for CORS preflight
+        ("OPTIONS", _) -> hdlePreflight config request respond
+
         -- Handle POST requests to /generate, passing config to the handler
-        ("POST", ["generate"]) -> hdleRequest config request respond
+        ("POST", ["genie"]) -> hdleRequest config request respond
 
         -- Simple health check endpoint
         ("GET", ["health"]) -> do
             liftIO $ hPutStrLn stderr "[app] Health check request received."
-            respond $ responseLBS status200 [(hContentType, "text/plain; charset=utf-8")] "OK" -- Specify charset
+            respond $ responseLBS status200 (addCorsHeaders [(hContentType, "text/plain; charset=utf-8")]) "OK" -- Specify charset
 
         -- Optional: Respond nicely to root path requests
         (_, []) -> do
             liftIO $ hPutStrLn stderr "[app] Root path request received."
-            respond $ responseLBS status200 [(hContentType, "text/plain; charset=utf-8")] "Service is running. Use POST /retrieval for document retrieval." -- Specify charset
+            respond $ responseLBS status200 (addCorsHeaders [(hContentType, "text/plain; charset=utf-8")]) "Service is running. Use POST /retrieval for document retrieval." -- Specify charset
 
         -- Optional: Fun teapot endpoint
         (_, ["teapot"]) -> do
             liftIO $ hPutStrLn stderr "[app] Teapot request received."
-            respond $ responseLBS status418 [(hContentType, "text/plain; charset=utf-8")] "418 I'm a teapot" -- Specify charset
+            respond $ responseLBS status418 (addCorsHeaders [(hContentType, "text/plain; charset=utf-8")]) "418 I'm a teapot" -- Specify charset
 
         -- Handle method not allowed for known paths with wrong method
-        (_, ["retrieval"]) -> respond $ responseLBS status405 [(hContentType, "text/plain; charset=utf-8")] "Method Not Allowed (POST required for /retrieval)"
-        (_, ["health"])    -> respond $ responseLBS status405 [(hContentType, "text/plain; charset=utf-8")] "Method Not Allowed (GET required for /health)"
+        (_, ["retrieval"]) -> respond $ responseLBS status405 (addCorsHeaders [(hContentType, "text/plain; charset=utf-8")]) "Method Not Allowed (POST required for /retrieval)"
+        (_, ["health"])    -> respond $ responseLBS status405 (addCorsHeaders [(hContentType, "text/plain; charset=utf-8")]) "Method Not Allowed (GET required for /health)"
 
         -- Handle anything else with 404 Not Found
-        _ -> respond $ responseLBS status404 [(hContentType, "text/plain; charset=utf-8")] "Not Found"
+        _ -> respond $ responseLBS status404 (addCorsHeaders [(hContentType, "text/plain; charset=utf-8")]) "Not Found"
 
 
 
