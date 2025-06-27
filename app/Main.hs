@@ -157,8 +157,8 @@ addCorsHeaders headers = headers ++ [   ("Access-Control-Allow-Origin", "*")
                                       , ("Access-Control-Allow-Methods", "POST, GET, OPTIONS")
                                       , ("Access-Control-Allow-Headers", "Content-Type, Authorization") ]
 
-hdlePreflight :: Config -> Application
-hdlePreflight conf _req resp = do
+hdlePreflight :: Application
+hdlePreflight _req resp = do
     -- Log the preflight request (optional)
     liftIO $ hPutStrLn stderr "[hdlePreflight] Preflight request received"
 
@@ -166,7 +166,7 @@ hdlePreflight conf _req resp = do
     resp $ responseLBS status204 (addCorsHeaders []) "Preflight response"
 
 
-hdleRequest ::  Config -> Application
+hdleRequest :: Config -> Application
 hdleRequest conf req resp = do
 
   -- 1. Read the lazy request body. It's lazy, so IO happens when consumed.
@@ -214,7 +214,7 @@ app config request respond = do
     case (requestMethod request, pathInfo request) of
 
         -- Handle OPTIONS requests for CORS preflight
-        ("OPTIONS", _) -> hdlePreflight config request respond
+        ("OPTIONS", _) -> hdlePreflight request respond
 
         -- Handle POST requests to /generate, passing config to the handler
         ("POST", ["genie"]) -> hdleRequest config request respond
