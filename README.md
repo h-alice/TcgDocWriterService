@@ -102,3 +102,11 @@ The key data types used in the API are defined in `ApiCore.hs`:
 - `FrontEndThread`: Represents a thread of messages.
 
 See the `ApiCore.hs` file for detailed definitions of these types.
+
+## Testing
+
+You may test the API using tools like `curl` or Postman. For example, to test the `/genie` endpoint, you can use the following `curl` command:
+
+```bash
+curl -X POST -H "Content-Type: application/json" -d '{"thread_id":"thread_12345","messages":[{"message_id":"msg1","role":"user","message":"幫我寫一篇關於小額採購雷射筆用於簡報使用，並預計花費約新台幣十萬元。","rewrite_flag":true}],"vdb_config":{"collection":"Documents","top_k":2,"pool_size":10,"alpha":0.7},"generator_config":{"model":"gpt-4","temperature":0.8,"top_p":0.95,"frequency_penalty":0.1,"presence_penalty":0.1}}' http://127.0.0.1:8080/genie
+```
