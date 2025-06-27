@@ -27,9 +27,11 @@ import VdbClient -- Client for the Vector Database
 
 eitherListVerifier :: [Either String a] -> Either String [a]
 eitherListVerifier [] = Right []
-eitherListVerifier (x:xs) = case x of
+eitherListVerifier (x:xs) =
+  case x of
     Left err -> Left err
-    Right val -> case eitherListVerifier xs of
+    Right val ->
+      case eitherListVerifier xs of
         Left err -> Left err
         Right vals -> Right (val:vals)
 
@@ -42,18 +44,18 @@ chatRecordFromFeThread FrontEndThread{ftMessages} =
 
 sysPromptInjector :: FrontEndThread -> Config -> FrontEndThread
 sysPromptInjector FrontEndThread{ftMessages, fmVdbConfig, fmGeneratorConfig, ftThreadId} config =
-    let systemMessage = FrontEndMessage
-            { fmMessageId = "system"
-            , fmRole = "system"
-            , fmMessage = (gcSystem . cfgGenerator) config
-            , fmRewriteFlag = False
-            }
-    in FrontEndThread
-        { ftMessages = systemMessage : ftMessages
-        , fmVdbConfig = fmVdbConfig
-        , fmGeneratorConfig = fmGeneratorConfig
-        , ftThreadId = ftThreadId
+  let systemMessage = FrontEndMessage
+        { fmMessageId = "system"
+        , fmRole = "system"
+        , fmMessage = (gcSystem . cfgGenerator) config
+        , fmRewriteFlag = False
         }
+  in FrontEndThread
+      { ftMessages = systemMessage : ftMessages
+      , fmVdbConfig = fmVdbConfig
+      , fmGeneratorConfig = fmGeneratorConfig
+      , ftThreadId = ftThreadId
+      }
 
 -- Workers
 
@@ -61,45 +63,45 @@ rewriteWorker :: FrontEndMessage -> Config -> ApiVdbConfig -> IO (Either String 
 rewriteWorker FrontEndMessage{fmMessageId, fmRole, fmMessage, fmRewriteFlag} config vdbConf = do
     if not fmRewriteFlag || (fmRole /= "user") then return $ Right FrontEndMessage{fmMessageId, fmRole, fmMessage, fmRewriteFlag}
     else do
-        let rwConfig = gcRewriter $ cfgGenerator config
-        let promptTemplate = rwPromptTemplate rwConfig
-        let docPlaceholder = rwDocPlaceholder rwConfig
-        let userPlaceholder = rwUserPlaceholder rwConfig
+      let rwConfig = gcRewriter $ cfgGenerator config
+      let promptTemplate = rwPromptTemplate rwConfig
+      let docPlaceholder = rwDocPlaceholder rwConfig
+      let userPlaceholder = rwUserPlaceholder rwConfig
 
-        let request = RetrievalRequest
-              { reqId = fmMessageId
-              , reqCollection = avCollection vdbConf
-              , reqQuery = fmMessage
-              , reqQueryParams = RetrievalParameters
-                  { paramTopK = avTopK vdbConf
-                  , paramPoolSize = avPoolSize vdbConf
-                  , paramAlpha = avAlpha vdbConf
-                  }
-              }
+      let request = RetrievalRequest
+            { reqId = fmMessageId
+            , reqCollection = avCollection vdbConf
+            , reqQuery = fmMessage
+            , reqQueryParams = RetrievalParameters
+                { paramTopK = avTopK vdbConf
+                , paramPoolSize = avPoolSize vdbConf
+                , paramAlpha = avAlpha vdbConf
+                }
+            }
 
-        -- Log the request details (optional)
-        liftIO $ hPutStrLn stderr $ "[Rewriter] Requesting documents for query: " ++ T.unpack fmMessage
+      -- Log the request details (optional)
+      liftIO $ hPutStrLn stderr $ "[Rewriter] Requesting documents for query: " ++ T.unpack fmMessage
 
-        docs <- retrievalDocument (T.unpack $ cfgVdbEndpoint config) request
+      docs <- retrievalDocument (T.unpack $ cfgVdbEndpoint config) request
 
-        case docs of
-            Left err -> do
-                liftIO $ hPutStrLn stderr $ "[Rewriter] Error retrieving documents: " ++ err
-                return $ Left $ "Error retrieving documents: " ++ err
-            Right retrievedDocs -> do
+      case docs of
+        Left err -> do
+          liftIO $ hPutStrLn stderr $ "[Rewriter] Error retrieving documents: " ++ err
+          return $ Left $ "Error retrieving documents: " ++ err
+        Right retrievedDocs -> do
 
-                -- Separator
-                let rwDocSep = (rwDocSeparator . gcRewriter . cfgGenerator) config
-                -- retrievedDocs is a list of Text documents
-                let docText = T.intercalate rwDocSep (respDocuments retrievedDocs)
+          -- Separator
+          let rwDocSep = (rwDocSeparator . gcRewriter . cfgGenerator) config
+          -- retrievedDocs is a list of Text documents
+          let docText = T.intercalate rwDocSep (respDocuments retrievedDocs)
 
-                liftIO $ TIO.hPutStrLn stderr $ "[Rewriter] Retrieved documents: " <> docText
+          liftIO $ TIO.hPutStrLn stderr $ "[Rewriter] Retrieved documents: " <> docText
 
-                -- Replace placeholders in the prompt template
-                let rewrittenQuery =  T.replace docPlaceholder docText $
-                                      T.replace userPlaceholder fmMessage promptTemplate
+          -- Replace placeholders in the prompt template
+          let rewrittenQuery =  T.replace docPlaceholder docText $
+                                T.replace userPlaceholder fmMessage promptTemplate
 
-                return $ Right FrontEndMessage{fmMessageId, fmRole, fmMessage = rewrittenQuery, fmRewriteFlag}
+          return $ Right FrontEndMessage{fmMessageId, fmRole, fmMessage = rewrittenQuery, fmRewriteFlag}
 
 promptRewriter :: FrontEndThread -> Config -> IO (Either String FrontEndThread)
 promptRewriter FrontEndThread{ftMessages, fmVdbConfig, fmGeneratorConfig, ftThreadId} config = do
@@ -119,41 +121,41 @@ promptRewriter FrontEndThread{ftMessages, fmVdbConfig, fmGeneratorConfig, ftThre
 
 respGenerator :: FrontEndThread -> Config -> IO (Either String FrontEndMessage)
 respGenerator feThread config = do
-    -- Log the start of the response generation process
-    liftIO $ hPutStrLn stderr $ "[Generator] Starting response generation for thread: " ++ T.unpack (ftThreadId feThread)
+  -- Log the start of the response generation process
+  liftIO $ hPutStrLn stderr $ "[Generator] Starting response generation for thread: " ++ T.unpack (ftThreadId feThread)
 
-    let generatorParams = LmParameters
-            { temp = agTemperature $ fmGeneratorConfig feThread
-            , topP = agTopP $ fmGeneratorConfig feThread
-            , frequencyPenalty = agFrequencyPenalty $ fmGeneratorConfig feThread
-            , presencePenalty = agPresencePenalty $ fmGeneratorConfig feThread
-            }
-    -- Extract the last user message
-    let chatRecords = chatRecordFromFeThread feThread
-    case chatRecords of
-        [] -> do
-            liftIO $ hPutStrLn stderr $ "[Generator] No user messages found."
-            return $ Left "No user messages found."
-        _ -> do
-            let req = mkChatRequest chatRecords (agModel $ fmGeneratorConfig feThread) generatorParams
-            resp <- lmRequest (T.unpack $ cfgLmEndpoint config) req
-            case resp of
-                Left err -> do
-                    liftIO $ hPutStrLn stderr $ "[Generator] Error in LM request: " ++ err
-                    return $ Left $ "Error in LM request: " ++ err
-                Right chatResponse -> do
-                    case maybeTopResponse chatResponse of
-                        Just textResp -> do
-                            let responseMessage = FrontEndMessage
-                                    { fmMessageId = "assistant-" <> ftThreadId feThread
-                                    , fmRole = "assistant"
-                                    , fmMessage = textResp
-                                    , fmRewriteFlag = False   -- No rewriting needed for the response
-                                    }
-                            return $ Right responseMessage
-                        Nothing -> do
-                            liftIO $ hPutStrLn stderr $ "[Generator] No response text found."
-                            return $ Left "No response text found."
+  let generatorParams = LmParameters
+        { temp = agTemperature $ fmGeneratorConfig feThread
+        , topP = agTopP $ fmGeneratorConfig feThread
+        , frequencyPenalty = agFrequencyPenalty $ fmGeneratorConfig feThread
+        , presencePenalty = agPresencePenalty $ fmGeneratorConfig feThread
+        }
+  -- Extract the last user message
+  let chatRecords = chatRecordFromFeThread feThread
+  case chatRecords of
+    [] -> do
+      liftIO $ hPutStrLn stderr $ "[Generator] No user messages found."
+      return $ Left "No user messages found."
+    _ -> do
+      let req = mkChatRequest chatRecords (agModel $ fmGeneratorConfig feThread) generatorParams
+      resp <- lmRequest (T.unpack $ cfgLmEndpoint config) req
+      case resp of
+        Left err -> do
+          liftIO $ hPutStrLn stderr $ "[Generator] Error in LM request: " ++ err
+          return $ Left $ "Error in LM request: " ++ err
+        Right chatResponse -> do
+          case maybeTopResponse chatResponse of
+            Just textResp -> do
+              let responseMessage = FrontEndMessage
+                    { fmMessageId = "assistant-" <> ftThreadId feThread
+                    , fmRole = "assistant"
+                    , fmMessage = textResp
+                    , fmRewriteFlag = False   -- No rewriting needed for the response
+                    }
+              return $ Right responseMessage
+            Nothing -> do
+              liftIO $ hPutStrLn stderr $ "[Generator] No response text found."
+              return $ Left "No response text found."
 
 
 addCorsHeaders :: ResponseHeaders -> ResponseHeaders
@@ -163,24 +165,24 @@ addCorsHeaders headers = headers ++ [   ("Access-Control-Allow-Origin", "*")
 
 hdlePreflight :: Application
 hdlePreflight _req resp = do
-    -- Log the preflight request (optional)
-    liftIO $ hPutStrLn stderr "[hdlePreflight] Preflight request received"
+  -- Log the preflight request (optional)
+  liftIO $ hPutStrLn stderr "[hdlePreflight] Preflight request received"
 
-    -- Respond with CORS headers
-    resp $ responseLBS status204 (addCorsHeaders []) "Preflight response"
+  -- Respond with CORS headers
+  resp $ responseLBS status204 (addCorsHeaders []) "Preflight response"
 
 
 hdleRequest :: Config -> Application
 hdleRequest conf req resp = do
 
-  -- 1. Read the lazy request body. It's lazy, so IO happens when consumed.
-  body <- lazyRequestBody req
+    -- 1. Read the lazy request body. It's lazy, so IO happens when consumed.
+    body <- lazyRequestBody req
 
-  case A.eitherDecode body :: Either String FrontEndThread of
-    Left err -> do
+    case A.eitherDecode body :: Either String FrontEndThread of
+      Left err -> do
         liftIO $ hPutStrLn stderr $ "[hdleRequest] Failed to decode request body: " ++ err
         resp $ responseLBS status400 (addCorsHeaders [(hContentType, "text/plain; charset=utf-8")]) "Invalid request body" -- Specify charset
-    Right feThread -> do
+      Right feThread -> do
         -- Log the received thread ID (optional)
         liftIO $ hPutStrLn stderr $ "[hdleRequest] Received thread ID: " ++ T.unpack (ftThreadId feThread)
 
@@ -191,72 +193,72 @@ hdleRequest conf req resp = do
         rewrittenThread <- promptRewriter updatedThread conf
 
         case rewrittenThread of
-            Left err -> do
-                liftIO $ hPutStrLn stderr $ "[hdleRequest] Error in prompt rewriting: " ++ err
-                resp $ responseLBS status500 (addCorsHeaders [(hContentType, "text/plain; charset=utf-8")]) "Internal Server Error" -- Specify charset
-            Right finalThread -> do
-                -- Generate response based on the rewritten thread
-                responseMessage <- respGenerator finalThread conf
+          Left err -> do
+            liftIO $ hPutStrLn stderr $ "[hdleRequest] Error in prompt rewriting: " ++ err
+            resp $ responseLBS status500 (addCorsHeaders [(hContentType, "text/plain; charset=utf-8")]) "Internal Server Error" -- Specify charset
+          Right finalThread -> do
+            -- Generate response based on the rewritten thread
+            responseMessage <- respGenerator finalThread conf
 
-                case responseMessage of
-                    Left err -> do
-                        liftIO $ hPutStrLn stderr $ "[hdleRequest] Error in response generation: " ++ err
-                        resp $ responseLBS status500 (addCorsHeaders [(hContentType, "text/plain; charset=utf-8")]) "Internal Server Error" -- Specify charset
-                    Right message -> do
-                        -- Respond with the generated message as JSON (or any other format you prefer)
-                        let jsonResponse = A.encode message
-                        liftIO $ hPutStrLn stderr $ "[hdleRequest] Successfully generated response for thread: " ++ T.unpack (ftThreadId finalThread)
-                        resp $ responseLBS status200 (addCorsHeaders [(hContentType, "application/json; charset=utf-8")]) jsonResponse -- Specify charset
+            case responseMessage of
+              Left err -> do
+                liftIO $ hPutStrLn stderr $ "[hdleRequest] Error in response generation: " ++ err
+                resp $ responseLBS status500 (addCorsHeaders [(hContentType, "text/plain; charset=utf-8")]) "Internal Server Error" -- Specify charset
+              Right message -> do
+                -- Respond with the generated message as JSON (or any other format you prefer)
+                let jsonResponse = A.encode message
+                liftIO $ hPutStrLn stderr $ "[hdleRequest] Successfully generated response for thread: " ++ T.unpack (ftThreadId finalThread)
+                resp $ responseLBS status200 (addCorsHeaders [(hContentType, "application/json; charset=utf-8")]) jsonResponse -- Specify charset
 
 
 app :: Config      -- ^ Application configuration
     -> Application -- ^ Resulting WAI Application
 app config request respond = do
-    -- Log incoming request details (optional but helpful for debugging)
-    liftIO $ hPutStrLn stderr $ "[app] Request received: " ++ show (requestMethod request) ++ " " ++ show (pathInfo request)
-    -- Route based on method and path segments
-    case (requestMethod request, pathInfo request) of
+  -- Log incoming request details (optional but helpful for debugging)
+  liftIO $ hPutStrLn stderr $ "[app] Request received: " ++ show (requestMethod request) ++ " " ++ show (pathInfo request)
+  -- Route based on method and path segments
+  case (requestMethod request, pathInfo request) of
 
-        -- Handle OPTIONS requests for CORS preflight
-        ("OPTIONS", _) -> hdlePreflight request respond
+    -- Handle OPTIONS requests for CORS preflight
+    ("OPTIONS", _) -> hdlePreflight request respond
 
-        -- Handle POST requests to /generate, passing config to the handler
-        ("POST", ["genie"]) -> hdleRequest config request respond
+    -- Handle POST requests to /generate, passing config to the handler
+    ("POST", ["genie"]) -> hdleRequest config request respond
 
-        -- Simple health check endpoint
-        ("GET", ["health"]) -> do
-            liftIO $ hPutStrLn stderr "[app] Health check request received."
-            respond $ responseLBS status200 (addCorsHeaders [(hContentType, "text/plain; charset=utf-8")]) "OK" -- Specify charset
+    -- Simple health check endpoint
+    ("GET", ["health"]) -> do
+      liftIO $ hPutStrLn stderr "[app] Health check request received."
+      respond $ responseLBS status200 (addCorsHeaders [(hContentType, "text/plain; charset=utf-8")]) "OK" -- Specify charset
 
-        -- Optional: Respond nicely to root path requests
-        (_, []) -> do
-            liftIO $ hPutStrLn stderr "[app] Root path request received."
-            respond $ responseLBS status200 (addCorsHeaders [(hContentType, "text/plain; charset=utf-8")]) "Service is running. Use POST /retrieval for document retrieval." -- Specify charset
+    -- Optional: Respond nicely to root path requests
+    (_, []) -> do
+      liftIO $ hPutStrLn stderr "[app] Root path request received."
+      respond $ responseLBS status200 (addCorsHeaders [(hContentType, "text/plain; charset=utf-8")]) "Service is running. Use POST /retrieval for document retrieval." -- Specify charset
 
-        -- Optional: Fun teapot endpoint
-        (_, ["teapot"]) -> do
-            liftIO $ hPutStrLn stderr "[app] Teapot request received."
-            respond $ responseLBS status418 (addCorsHeaders [(hContentType, "text/plain; charset=utf-8")]) "418 I'm a teapot" -- Specify charset
+    -- Optional: Fun teapot endpoint
+    (_, ["teapot"]) -> do
+      liftIO $ hPutStrLn stderr "[app] Teapot request received."
+      respond $ responseLBS status418 (addCorsHeaders [(hContentType, "text/plain; charset=utf-8")]) "418 I'm a teapot" -- Specify charset
 
-        -- Handle method not allowed for known paths with wrong method
-        (_, ["retrieval"]) -> respond $ responseLBS status405 (addCorsHeaders [(hContentType, "text/plain; charset=utf-8")]) "Method Not Allowed (POST required for /retrieval)"
-        (_, ["health"])    -> respond $ responseLBS status405 (addCorsHeaders [(hContentType, "text/plain; charset=utf-8")]) "Method Not Allowed (GET required for /health)"
+    -- Handle method not allowed for known paths with wrong method
+    (_, ["retrieval"]) -> respond $ responseLBS status405 (addCorsHeaders [(hContentType, "text/plain; charset=utf-8")]) "Method Not Allowed (POST required for /retrieval)"
+    (_, ["health"])    -> respond $ responseLBS status405 (addCorsHeaders [(hContentType, "text/plain; charset=utf-8")]) "Method Not Allowed (GET required for /health)"
 
-        -- Handle anything else with 404 Not Found
-        _ -> respond $ responseLBS status404 (addCorsHeaders [(hContentType, "text/plain; charset=utf-8")]) "Not Found"
+    -- Handle anything else with 404 Not Found
+    _ -> respond $ responseLBS status404 (addCorsHeaders [(hContentType, "text/plain; charset=utf-8")]) "Not Found"
 
 
 
 main :: IO ()
 main = do
-    putStrLn "Starting Document Writer API service..."
+  putStrLn "Starting Document Writer API service..."
 
-    config <- loadConfig "config.yaml"
-    case config of
-        Left err -> putStrLn $ "Error loading config: " ++ show err
-        Right cfg -> do
-          printConfig cfg
+  config <- loadConfig "config.yaml"
+  case config of
+    Left err -> putStrLn $ "Error loading config: " ++ show err
+    Right cfg -> do
+      printConfig cfg
 
-          hPutStrLn stderr $ "Document Writer API service starting on port " ++ show ((ncPort . cfgNetwork) cfg) ++ "..."
+      hPutStrLn stderr $ "Document Writer API service starting on port " ++ show ((ncPort . cfgNetwork) cfg) ++ "..."
 
-          run ((ncPort . cfgNetwork) cfg) (app cfg)
+      run ((ncPort . cfgNetwork) cfg) (app cfg)
