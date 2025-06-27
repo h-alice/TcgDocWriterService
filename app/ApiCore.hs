@@ -1,6 +1,6 @@
 -- |
 -- Module      : ApiCore
--- Description : Defines the core data types for the API request structure.
+-- Description : (Genie API v1) Defines the core data types for the API request structure.
 -- Copyright   : (c) 2025 Wayne "h-alice" Hong
 -- License     : AGPL-3.0
 -- Maintainer  : admin@halice.art
@@ -101,16 +101,16 @@ instance FromJSON ApiVdbConfig where
 instance FromJSON ApiRequest where
   parseJSON :: Value -> Parser ApiRequest
   parseJSON = withObject "ApiRequest" $ \v -> ApiRequest
-    <$> v .: "user_query"
-    <*> v .: "thread_id"
-    <*> v .: "vdb_config"
-    <*> v .: "generator_config"
+    <$> v .:  "user_query"
+    <*> v .:? "thread_id"       .!= ""
+    <*> v .:  "vdb_config"
+    <*> v .:  "generator_config"
 
 -- | 'FromJSON' instance for 'FrontEndMessage'.
 instance FromJSON FrontEndMessage where
   parseJSON :: Value -> Parser FrontEndMessage
   parseJSON = withObject "FrontEndMessage" $ \v -> FrontEndMessage
-    <$> v .:  "message_id"
+    <$> v .:? "message_id"   .!= ""
     <*> v .:  "role"
     <*> v .:  "message"
     <*> v .:? "rewrite_flag" .!= False
@@ -123,7 +123,8 @@ instance FromJSON FrontEndThread where
     <*> v .: "vdb_config"
     <*> v .: "generator_config"
     <*> v .: "thread_id"
-  
+
+-- | 'ToJSON' instance for 'FrontEndMessage'.
 instance ToJSON FrontEndMessage where
   toJSON :: FrontEndMessage -> Value
   toJSON FrontEndMessage {fmMessageId, fmRole, fmMessage, fmRewriteFlag} =
