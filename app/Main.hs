@@ -1,5 +1,21 @@
+-- |
+-- Module      : Main
+-- Description : Main entry point for the TCG Document Writer Service.
+-- Copyright   : (c) 2025 Wayne "h-alice" Hong
+-- License     : AGPL-3.0
+-- Maintainer  : admin@halice.art
+-- Stability   : experimental
+-- Portability : POSIX
+--
+-- This module serves as the main entry point for the TCG Document Writer Service.
+-- It is responsible for loading configuration, setting up the web server (Warp),
+-- and routing incoming API requests to the appropriate handlers for prompt rewriting
+-- and LLM-based response generation.
+--
+
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE NamedFieldPuns #-}
+
 module Main (main) where
 
 -- Base
