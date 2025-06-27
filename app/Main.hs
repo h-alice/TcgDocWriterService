@@ -2,22 +2,26 @@
 {-# LANGUAGE NamedFieldPuns #-}
 module Main (main) where
 
+-- Base
+import Control.Monad.IO.Class (liftIO)      -- To lift IO actions into the WAI Application monad
+import System.IO              (hPutStrLn, stderr) -- For logging to standard error
 
-import qualified Data.Text as T
-import VdbClient
-import LmClient
-import ApiCore
-import qualified Data.Aeson as A
-import Config
+-- Data
+import qualified Data.Aeson   as A          -- For JSON encoding and decoding
+import qualified Data.Text    as T
 import qualified Data.Text.IO as TIO
--- Web Server Core (WAI & Warp)
-import Network.Wai ( Application, pathInfo, requestMethod, responseLBS, lazyRequestBody )
-import Network.Wai.Handler.Warp (run)
-import Network.HTTP.Types ( status200, status400, status404, status405, status418, status500, status204 )
-import Network.HTTP.Types.Header
-import Control.Monad.IO.Class (liftIO) -- To lift IO actions within WAI Application monad
-import System.IO (hPutStrLn, stderr) -- For printing errors/warnings
 
+-- Web Server
+import Network.HTTP.Types        (status200, status204, status400, status404, status405, status418, status500) -- HTTP status codes
+import Network.HTTP.Types.Header (hContentType, ResponseHeaders) -- Standard HTTP headers and types
+import Network.Wai               (Application, lazyRequestBody, pathInfo, requestMethod, responseLBS) -- Core WAI types and functions
+import Network.Wai.Handler.Warp  (run) -- The Warp web server
+
+-- Internal Modules
+import ApiCore   -- Core data types for the API request structure
+import Config    -- Configuration loading and management
+import LmClient  -- Client for the Large Language Model
+import VdbClient -- Client for the Vector Database
 
 -- Utils
 
