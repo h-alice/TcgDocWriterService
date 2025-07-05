@@ -1,0 +1,17 @@
+services:
+  retrieve-service:
+    build:
+      context: .
+    image: h-alice/docwriter-service  # Image name for the built service
+    container_name: docwriter-service # Optional: sets a predictable container name
+    ports:
+      - "6060:6060" # Expose port 6060 for the service
+    restart: unless-stopped
+    volumes:
+      - ./config.yaml:/app/config.yaml:ro # Mount the config file into the container
+    healthcheck:
+      test: curl --fail "http://localhost:6060/health" || exit 1
+      interval: 40s
+      timeout: 30s
+      retries: 3
+      start_period: 60s
