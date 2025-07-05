@@ -40,7 +40,6 @@ library
     , http-client
     , http-types
     , lens
-    , rainbow
     , text
     , unordered-containers
     , wai
@@ -69,7 +68,6 @@ executable tcgdoc-serv-exe
     , http-client
     , http-types
     , lens
-    , rainbow
     , tcgdoc-serv
     , text
     , unordered-containers
@@ -96,7 +94,6 @@ test-suite tcgdoc-serv-test
     , http-client
     , http-types
     , lens
-    , rainbow
     , tcgdoc-serv
     , text
     , unordered-containers

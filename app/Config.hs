@@ -16,6 +16,7 @@ import qualified Data.Text as T
 import qualified Data.Text.IO as TIO
 import qualified Data.Yaml as Y
 import Data.Yaml (FromJSON(..), (.:))
+import System.IO              (hPutStrLn, stderr) -- For logging to standard error
 
 
 data NetworkConfig =
@@ -91,13 +92,14 @@ loadConfig path = do
 
 printConfig :: Config -> IO ()
 printConfig Config{..} = do
-  TIO.putStrLn "Configuration Loaded Successfully:"
-  TIO.putStrLn "-------------------------------"
-  TIO.putStrLn "Network Config: "
-  TIO.putStrLn $ "  Hostname: " <> ncHostname cfgNetwork
-  TIO.putStrLn $ "  Port: " <> T.pack (show $ ncPort cfgNetwork)
-  TIO.putStrLn $ "System Prompt: \n" <> gcSystem cfgGenerator
-  TIO.putStrLn $ "Prompt Template: \n" <> (rwPromptTemplate . gcRewriter) cfgGenerator
-  TIO.putStrLn $ "LM Endpoint: " <> cfgLmEndpoint
-  TIO.putStrLn $ "VDB Endpoint: " <> cfgVdbEndpoint
-  TIO.putStrLn "-------------------------------"
+  TIO.hPutStrLn stderr "-------------------------------"
+  TIO.hPutStrLn stderr "Configuration Loaded Successfully:"
+  TIO.hPutStrLn stderr "-------------------------------"
+  TIO.hPutStrLn stderr "Network Config: "
+  TIO.hPutStrLn stderr $ "  Hostname: " <> ncHostname cfgNetwork
+  TIO.hPutStrLn stderr $ "  Port: " <> T.pack (show $ ncPort cfgNetwork)
+  TIO.hPutStrLn stderr $ "System Prompt: \n" <> gcSystem cfgGenerator
+  TIO.hPutStrLn stderr $ "Prompt Template: \n" <> (rwPromptTemplate . gcRewriter) cfgGenerator
+  TIO.hPutStrLn stderr $ "LM Endpoint: " <> cfgLmEndpoint
+  TIO.hPutStrLn stderr $ "VDB Endpoint: " <> cfgVdbEndpoint
+  TIO.hPutStrLn stderr "-------------------------------"
