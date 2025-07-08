@@ -1,5 +1,5 @@
 services:
-  retrieve-service:
+  docwriter-service:
     build:
       context: .
     image: h-alice/docwriter-service  # Image name for the built service
