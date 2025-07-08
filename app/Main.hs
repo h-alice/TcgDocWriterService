@@ -269,7 +269,7 @@ app config request respond = do
     -- Optional: Respond nicely to root path requests
     (_, []) -> do
       liftIO $ hPutStrLn stderr "[app] Root path request received."
-      respond $ responseLBS status200 (addCorsHeaders [(hContentType, "text/plain; charset=utf-8")]) "Service is running. Use POST /retrieval for document retrieval." -- Specify charset
+      respond $ responseLBS status200 (addCorsHeaders [(hContentType, "text/plain; charset=utf-8")]) "Service is running. Use POST /genie for document writing." -- Specify charset
 
     -- Optional: Fun teapot endpoint
     (_, ["teapot"]) -> do
@@ -277,7 +277,7 @@ app config request respond = do
       respond $ responseLBS status418 (addCorsHeaders [(hContentType, "text/plain; charset=utf-8")]) "418 I'm a teapot" -- Specify charset
 
     -- Handle method not allowed for known paths with wrong method
-    (_, ["retrieval"]) -> respond $ responseLBS status405 (addCorsHeaders [(hContentType, "text/plain; charset=utf-8")]) "Method Not Allowed (POST required for /retrieval)"
+    (_, ["genie"]) -> respond $ responseLBS status405 (addCorsHeaders [(hContentType, "text/plain; charset=utf-8")]) "Method Not Allowed (POST required for /retrieval)"
     (_, ["health"])    -> respond $ responseLBS status405 (addCorsHeaders [(hContentType, "text/plain; charset=utf-8")]) "Method Not Allowed (GET required for /health)"
 
     -- Handle anything else with 404 Not Found
